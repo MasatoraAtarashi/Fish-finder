@@ -10,12 +10,12 @@ byte read_buffer[4];
 byte crcCalc;
 float distance;
 float dst;
-float dsts[5];
-int measure_count = 1;
+int measure_count;
+float dsts[100];
+float fish_depth;
 float depth;
 float average;
-boolean depth_state = false;  //深さが設定済みならtrue
-boolean fish_state = false; //魚がいたらtrue
+
 
  void setup() {
      u8g.setColorIndex(1);
@@ -28,11 +28,8 @@ boolean fish_state = false; //魚がいたらtrue
      for (byte loopstep = 0; loopstep <= 3; loopstep++) {
         read_buffer[loopstep] = 0;
       }
-
-     pinMode(4, INPUT);
  }
 
-// 水深を測るメソッド
  void measure() {
     if (mySerial.available() < 1) {
       return;  
@@ -53,8 +50,8 @@ boolean fish_state = false; //魚がいたらtrue
       dst = distance/10.0;
       Serial.print(dst,1);
       Serial.println(" cm");
-      dsts[measure_count - 1] = dst;
       measure_count++;
+      dsts[measure_count - 1] = dst;
       delay(500);
       while (mySerial.available() > 0) {
          readByte = mySerial.read();
@@ -62,23 +59,44 @@ boolean fish_state = false; //魚がいたらtrue
  }
  void loop() {
     u8g.firstPage();  
-    u8g.setFont(u8g_font_unifont);
      do {
       measure();
-      if(depth_state == false) {
-        Serial.println("false");
-        setDepth();
-      } else {
-        Serial.println("true");
+      u8g.setFont(u8g_font_unifont);
+      if(measure_count < 5) {
+        u8g.setPrintPos(10, 10);
+        u8g.print("depth: ");
+        u8g.print("...");
+        u8g.setPrintPos(10, 40);
+        u8g.print("fish: ");
+        u8g.print("...");
+      }
+      if(measure_count == 5 && depth == 0) {
+          float sum = dsts[measure_count - 5] + dsts[measure_count - 4] + dsts[measure_count - 3] + dsts[measure_count - 2] + dsts[measure_count - 1];
+          average = sum / 5;
+          boolean error = true;
+          int i = 5;
+          while(i > 0) {
+            if(dsts[measure_count - i] - average > 5 && dsts[measure_count - i] - average < -5) {
+              error = false;
+            }
+            i--;
+          }
+          if(error) {
+            depth = average;
+          } else {
+            measure_count = 0;
+          }
+      }
+      if(measure_count > 5) {
         u8g.setPrintPos(10, 10);
         u8g.print("depth: ");
         u8g.print(depth,1);
         u8g.print("cm");
-        check();
-        if(fish_state) {
+        if((depth - dsts[measure_count - 1]) > 5) {
+          fish_depth = depth - dsts[measure_count - 1];
           u8g.setPrintPos(10, 40);
           u8g.print("fish: ");
-          u8g.print(dst,1);
+          u8g.print(fish_depth,1);
           u8g.print("cm");
         } else {
           u8g.setPrintPos(10, 40);
@@ -86,54 +104,5 @@ boolean fish_state = false; //魚がいたらtrue
           u8g.print("none");
         }
       }
-      if(digitalRead(4) == HIGH) {
-        reset();
-      }
     } while( u8g.nextPage() );
  }
-
-// リセットボタンを押した時の処理
-void reset() {
-  Serial.println("reset");
-  depth_state = false;
-  setDepth();
-}
-
-//　水深を設定するメソッド
-void setDepth() {
-  Serial.println("setdepth");
-  u8g.setFont(u8g_font_unifont);
-  u8g.setPrintPos(10, 10);
-  u8g.print("measuring...");
-  if(measure_count == 5) {
-    Serial.println("depth");
-    float sum = dsts[measure_count - 5] + dsts[measure_count - 4] + dsts[measure_count - 3] + dsts[measure_count - 2] + dsts[measure_count - 1];
-    average = sum / 5;
-    boolean error = true;
-    int i = 5;
-    while(i > 0) {
-      if(dsts[measure_count - i] - average > 5 && dsts[measure_count - i] - average < -5) {
-        error = false;
-      }
-      i--;
-    }
-    if(error) {
-      depth = average;
-      measure_count = 1;
-      depth_state = true;
-    } else {
-      measure_count = 1;
-      depth_state = false;
-    }
-  }
-}
-
-//　魚がいないかチェックするメソッド
-void check() {
-  if(depth - dst > 5 || depth - dst < -5) {
-    fish_state = true;
-  } else {
-    fish_state = false;
-  }
-}
-
