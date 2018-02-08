@@ -59,23 +59,61 @@ float fish_depth;
     u8g.firstPage();  
      do {
       measure();
-      if(measure_count >= 2) {
-        u8g.setFont(u8g_font_unifont);
+      u8g.setFont(u8g_font_unifont);
+      float sum;
+      float average;
+      float depth;
+      boolean error = false;
+      if(measure_count >= 5 && depth == 0) {
+          Serial.println('A');
+          sum = dsts[measure_count - 5] + dsts[measure_count - 4] + dsts[measure_count - 3] + dsts[measure_count - 2] + dsts[measure_count - 1];
+          average = sum / 5;
+          boolean error = true;
+          int i = 5;
+          while(i > 0) {
+            if(dsts[measure_count - i] - average > 5 && dsts[measure_count - i] - average < -5) {
+              error = false;
+            }
+            i--;
+          }
+      }else {
         u8g.setPrintPos(10, 10);
-        u8g.print("depth: ");
-        u8g.print(dsts[measure_count - 2],1);
-        u8g.print("cm");
-        if((dsts[measure_count - 2] - dsts[measure_count - 1]) > 5) {
-          fish_depth = dsts[measure_count - 2] - dsts[measure_count - 1];
-          u8g.setPrintPos(10, 40);
-          u8g.print("fish: ");
-          u8g.print(fish_depth,1);
-          u8g.print("cm");
-        } else {
-          u8g.setPrintPos(10, 40);
-          u8g.print("fish: ");
-          u8g.print("none");
-        }
+            u8g.print("depth: ");
+            u8g.print("...");
+            u8g.setPrintPos(10, 40);
+            u8g.print("fish: ");
+            u8g.print("...");
       }
+          if(error) {
+             depth = average;
+             u8g.setPrintPos(10, 10);
+             u8g.print("depth: ");
+             u8g.print(depth,1);
+             u8g.print("cm");
+             if(measure_count >= 6) {
+              if(average - dsts[measure_count - 1] > 5) {
+                fish_depth = depth - dsts[measure_count - 1];
+                u8g.setPrintPos(10, 40);
+                u8g.print("fish: ");
+                u8g.print(fish_depth,1);
+                u8g.print("cm");
+              } else {
+                u8g.setPrintPos(10, 40);
+                u8g.print("fish: ");
+                u8g.print("...");
+              }
+             } else {
+              u8g.setPrintPos(10, 40);
+              u8g.print("fish: ");
+              u8g.print("...");
+             }
+          } else {
+            u8g.setPrintPos(10, 10);
+            u8g.print("depth: ");
+            u8g.print("...");
+            u8g.setPrintPos(10, 40);
+            u8g.print("fish: ");
+            u8g.print("...");
+          }
     } while( u8g.nextPage() );
  }
